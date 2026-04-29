@@ -1,4 +1,3 @@
-// src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useRights } from './context/UserRightsContext';
@@ -30,9 +29,8 @@ function App() {
   const { currentUser, loading } = useAuth();
   const { rightsLoading } = useRights();
 
-  const isAuthCallback = window.location.pathname === '/auth/callback';
-
-  if ((loading || rightsLoading) && !isAuthCallback) return null;
+ const isCallback = window.location.pathname === '/auth/callback';
+  if (!isCallback && (loading || rightsLoading)) return null;
 
   return (
     <BrowserRouter>
