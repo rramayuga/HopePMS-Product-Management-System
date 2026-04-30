@@ -7,13 +7,10 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [session, setSession]         = useState(null);
-  const [loading, setLoading]         = useState(true);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
-  // Guard ref — tracks the last session user ID we fetched for.
-  // Prevents the double-call that happens because getSession() and
-  // onAuthStateChange(INITIAL_SESSION) both fire on mount and both
-  // previously triggered fetchAndMergeUser for the same session.
   const lastFetchedUid = useRef(null);
 
   useEffect(() => {
@@ -22,15 +19,14 @@ export const AuthProvider = ({ children }) => {
         lastFetchedUid.current = null;
         setCurrentUser(null);
         setLoading(false);
+        setInitialized(true);
         return;
       }
 
       const uid = currentSession.user.id;
 
-      // Skip if we already fetched for this exact user ID.
-      // This deduplicates the getSession() + INITIAL_SESSION double-fire.
+      // ✅ FIX: do NOT touch loading here
       if (lastFetchedUid.current === uid) {
-        setLoading(false);
         return;
       }
       lastFetchedUid.current = uid;
@@ -44,11 +40,9 @@ export const AuthProvider = ({ children }) => {
 
         if (error || !userRow) {
           console.error('Error fetching user row:', error);
-          // PENDING — holds ProtectedRoute in null state instead of
-          // triggering a premature signOut + redirect to /login?error=inactive
           setCurrentUser({
             ...currentSession.user,
-            user_type:     'USER',
+            user_type: 'USER',
             record_status: 'PENDING',
           });
         } else {
@@ -56,39 +50,37 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.error('fetchAndMergeUser threw:', err);
-        // PENDING here too — catch block should never signOut the user
         setCurrentUser({
           ...currentSession.user,
-          user_type:     'USER',
+          user_type: 'USER',
           record_status: 'PENDING',
         });
       } finally {
         setLoading(false);
+        setInitialized(true);
       }
     };
 
-    // Initial session check on mount
+    // Initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       fetchAndMergeUser(session);
     });
 
-    // Auth state listener — handles login, logout, token refresh
+    // Auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
 
-        // On SIGNED_OUT reset the guard so the next login fetches fresh
         if (event === 'SIGNED_OUT') {
           lastFetchedUid.current = null;
           setCurrentUser(null);
           setLoading(false);
+          setInitialized(true);
           return;
         }
 
-        // On TOKEN_REFRESHED the user hasn't changed — skip DB refetch
         if (event === 'TOKEN_REFRESHED') {
-          setSession(session);
           return;
         }
 
@@ -104,6 +96,7 @@ export const AuthProvider = ({ children }) => {
       currentUser,
       session,
       loading,
+      initialized,
       userType: currentUser?.user_type ?? 'USER',
     }}>
       {children}
