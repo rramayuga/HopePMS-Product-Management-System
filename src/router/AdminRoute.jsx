@@ -3,13 +3,18 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const AdminRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  
+  const { currentUser, session, loading, initialized } = useAuth();
 
-  // Wait for auth to resolve
-  if (loading) return null;
+if (!initialized || loading) return null;
 
-  // Not logged in
-  if (!currentUser) return <Navigate to="/login" replace />;
+if (!session) {
+  return <Navigate to="/login" replace />;
+}
+
+if (!currentUser) {
+  return null; // wait for profile hydration
+}
 
   // Logged in but USER — redirect to products
   if (!['ADMIN', 'SUPERADMIN'].includes(currentUser.user_type)) {
