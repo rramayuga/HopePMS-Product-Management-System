@@ -11,8 +11,6 @@ import ProductListPage from './pages/ProductListPage';
 import DeletedItemsPage from './pages/DeletedItemsPage';
 import UserManagementPage from './pages/UserManagementPage';
 
-
-/* ── Placeholder pages — replace in Sprint 2/3 PRs ── */
 const ReportsPage = () => (
   <div className="p-4">
     <h1 className="text-xl font-bold text-[#31511E] mb-1">Reports</h1>
@@ -20,28 +18,23 @@ const ReportsPage = () => (
   </div>
 );
 
-const AdminPage = () => (
-  <div className="p-4">
-    <h1 className="text-xl font-bold text-[#31511E] mb-1">Admin Dashboard</h1>
-    <p className="text-xs text-[#859F3D]">Manage users and system settings.</p>
-  </div>
-);
-
 function App() {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, initialized } = useAuth();
   const { rightsLoading } = useRights();
 
- const isCallback = window.location.pathname === '/auth/callback';
-  if (!isCallback && (loading || rightsLoading)) return null;
+  const isAuthCallback = window.location.pathname === '/auth/callback';
+
+  // ✅ Wait until EVERYTHING is ready
+  if ((!initialized || rightsLoading) && !isAuthCallback) return null;
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* ── Public ── */}
+        {/* Public */}
         <Route path="/login" element={<AuthPage />} />
         <Route path="/auth/callback" element={<AuthCallBack />} />
 
-        {/* ── Protected — any authenticated ACTIVE user ── */}
+        {/* Protected */}
         <Route path="/products" element={
           <ProtectedRoute>
             <MainLayout user={currentUser}>
@@ -58,11 +51,11 @@ function App() {
           </ProtectedRoute>
         } />
 
-        {/* ── Admin only — ADMIN and SUPERADMIN ── */}
+        {/* Admin */}
         <Route path="/admin" element={
           <AdminRoute>
             <MainLayout user={currentUser}>
-              <UserManagementPage /> {/* Change AdminPage to UserManagementPage */}
+              <UserManagementPage />
             </MainLayout>
           </AdminRoute>
         } />
@@ -75,17 +68,13 @@ function App() {
           </AdminRoute>
         } />
 
-        {/* ── Fallback ──
-            Only evaluated after auth+rights are fully resolved (see guard
-            above), so currentUser here is always the real final value —
-            never an intermediate null from a cold start race condition.
-        ── */}
+        {/* Root */}
         <Route path="/" element={
           <Navigate to={currentUser ? '/products' : '/login'} replace />
         } />
-        <Route path="*" element={
-          <Navigate to={currentUser ? '/products' : '/login'} replace />
-        } />
+
+        {/* Fallback (safe) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
