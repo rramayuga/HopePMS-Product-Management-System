@@ -4,24 +4,26 @@ import { useAuth } from '../context/AuthContext';
 const ProtectedRoute = ({ children }) => {
   const { session, currentUser, loading, initialized } = useAuth();
 
-  // Wait for auth to fully resolve
+  // ⛔ Wait until auth system is fully ready
   if (!initialized || loading) return null;
 
-  // Not logged in → redirect
+  // ❌ Not logged in
   if (!session) {
     return <Navigate to="/login" replace />;
   }
 
-  // Logged in but profile still loading → WAIT (IMPORTANT)
-  if (!currentUser) return null;
+  // ⏳ Logged in but user profile still loading → WAIT (do NOT redirect)
+  if (session && !currentUser) return null;
 
-  // Account checks (safe here)
-  if (currentUser.record_status === 'PENDING') return null;
+  // ⏳ User exists but still pending DB validation
+  if (currentUser?.record_status === 'PENDING') return null;
 
-  if (currentUser.record_status !== 'ACTIVE') {
+  // ❌ Inactive account
+  if (currentUser?.record_status !== 'ACTIVE') {
     return <Navigate to="/login?error=inactive" replace />;
   }
 
+  // ✅ Fully authenticated + validated
   return children;
 };
 
