@@ -3,15 +3,18 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../db/supabase';
 
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading, initialized } = useAuth();
 
-  // ✅ Wait until auth is fully initialized
+    const { currentUser, session, loading, initialized } = useAuth();
+
   if (!initialized || loading) return null;
 
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
+if (!session) {
+  return <Navigate to="/login" replace />;
+}
 
+if (!currentUser) {
+  return null; // wait for profile hydration
+}
   if (currentUser.record_status === 'PENDING') {
     return null;
   }
