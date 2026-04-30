@@ -70,7 +70,9 @@ function App() {
 
         {/* Root */}
         <Route path="/" element={
-          <Navigate to={currentUser ? '/products' : '/login'} replace />
+          <const { session } = useAuth();
+
+          <Navigate to={session ? '/products' : '/login'} replace />
         } />
 
         {/* Fallback (safe) */}
