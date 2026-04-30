@@ -9,6 +9,8 @@ import AuthCallBack from './pages/AuthCallBack';
 import MainLayout from './components/MainLayout';
 import ProductListPage from './pages/ProductListPage';
 import DeletedItemsPage from './pages/DeletedItemsPage';
+import UserManagementPage from './pages/UserManagementPage';
+
 
 /* ── Placeholder pages — replace in Sprint 2/3 PRs ── */
 const ReportsPage = () => (
@@ -60,7 +62,7 @@ function App() {
         <Route path="/admin" element={
           <AdminRoute>
             <MainLayout user={currentUser}>
-              <AdminPage />
+              <UserManagementPage /> {/* Change AdminPage to UserManagementPage */}
             </MainLayout>
           </AdminRoute>
         } />
