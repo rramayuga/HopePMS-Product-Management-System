@@ -12,11 +12,16 @@ export const AuthProvider = ({ children }) => {
   const [initialized, setInitialized] = useState(false);
 
   const lastFetchedUid = useRef(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     const fetchAndMergeUser = async (currentSession) => {
       if (!currentSession?.user) {
         lastFetchedUid.current = null;
+
+        if (!mountedRef.current) return;
         setCurrentUser(null);
         setLoading(false);
         setInitialized(true);
@@ -25,54 +30,53 @@ export const AuthProvider = ({ children }) => {
 
       const uid = currentSession.user.id;
 
-      // ✅ FIX: do NOT touch loading here
-      if (lastFetchedUid.current === uid) {
-        return;
-      }
+      // Prevent duplicate fetch for same user
+      if (lastFetchedUid.current === uid) return;
       lastFetchedUid.current = uid;
 
       try {
         const { data: userRow, error } = await supabase
-          .from('user')
-          .select('userid, username, firstname, lastname, user_type, record_status')
-          .eq('userid', uid)
+          .from("user")
+          .select("userid, username, firstname, lastname, user_type, record_status")
+          .eq("userid", uid)
           .single();
 
+        if (!mountedRef.current) return;
+
         if (error || !userRow) {
-          console.error('Error fetching user row:', error);
           setCurrentUser({
             ...currentSession.user,
-            user_type: 'USER',
-            record_status: 'PENDING',
+            user_type: "USER",
+            record_status: "PENDING",
           });
         } else {
-          setCurrentUser({ ...currentSession.user, ...userRow });
+          setCurrentUser({
+            ...currentSession.user,
+            ...userRow,
+          });
         }
       } catch (err) {
-        console.error('fetchAndMergeUser threw:', err);
+        if (!mountedRef.current) return;
+
         setCurrentUser({
           ...currentSession.user,
-          user_type: 'USER',
-          record_status: 'PENDING',
+          user_type: "USER",
+          record_status: "PENDING",
         });
       } finally {
+        if (!mountedRef.current) return;
+
         setLoading(false);
         setInitialized(true);
       }
     };
 
-    // Initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      fetchAndMergeUser(session);
-    });
-
-    // Auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+    // ✅ SINGLE SOURCE OF TRUTH (auth listener)
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange((event, session) => {
         setSession(session);
 
-        if (event === 'SIGNED_OUT') {
+        if (event === "SIGNED_OUT") {
           lastFetchedUid.current = null;
           setCurrentUser(null);
           setLoading(false);
@@ -80,25 +84,34 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        if (event === 'TOKEN_REFRESHED') {
-          return;
-        }
+        // Ignore token refresh noise
+        if (event === "TOKEN_REFRESHED") return;
 
         fetchAndMergeUser(session);
-      }
-    );
+      });
 
-    return () => subscription.unsubscribe();
+    // ✅ Initial session bootstrap (only once)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      fetchAndMergeUser(session);
+    });
+
+    return () => {
+      mountedRef.current = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      session,
-      loading,
-      initialized,
-      userType: currentUser?.user_type ?? 'USER',
-    }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        session,
+        loading,
+        initialized,
+        userType: currentUser?.user_type ?? "USER",
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
