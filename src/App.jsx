@@ -19,12 +19,12 @@ const ReportsPage = () => (
 );
 
 function App() {
-  const { currentUser, initialized } = useAuth();
+  const { currentUser, session, initialized } = useAuth();
   const { rightsLoading } = useRights();
 
   const isAuthCallback = window.location.pathname === '/auth/callback';
 
-  // ✅ Wait until EVERYTHING is ready
+  // Wait until auth + rights are ready
   if ((!initialized || rightsLoading) && !isAuthCallback) return null;
 
   return (
@@ -68,14 +68,15 @@ function App() {
           </AdminRoute>
         } />
 
-        {/* Root */}
-        <Route path="/" element={
-          <const { session } = useAuth();
+        {/* Root redirect (FIXED) */}
+        <Route
+          path="/"
+          element={
+            <Navigate to={session ? '/products' : '/login'} replace />
+          }
+        />
 
-          <Navigate to={session ? '/products' : '/login'} replace />
-        } />
-
-        {/* Fallback (safe) */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
